@@ -140,9 +140,8 @@ def recursive_execute(server, prompt, outputs, current_item, extra_data, execute
     input_data_all = None
     try:
         input_data_all = get_input_data(inputs, class_def, unique_id, outputs, prompt, extra_data)
-        if server.client_id is not None:
-            server.last_node_id = unique_id
-            server.send_sync("executing", { "node": unique_id, "prompt_id": prompt_id }, server.client_id)
+        server.last_node_id = unique_id
+        server.send_sync("executing", { "node": unique_id, "prompt_id": prompt_id }, server.client_id)
 
         obj = object_storage.get((unique_id, class_type), None)
         if obj is None:
@@ -153,8 +152,7 @@ def recursive_execute(server, prompt, outputs, current_item, extra_data, execute
         outputs[unique_id] = output_data
         if len(output_ui) > 0:
             outputs_ui[unique_id] = output_ui
-            if server.client_id is not None:
-                server.send_sync("executed", { "node": unique_id, "output": output_ui, "prompt_id": prompt_id }, server.client_id)
+            server.send_sync("executed", { "node": unique_id, "output": output_ui, "prompt_id": prompt_id }, server.client_id)
     except comfy.model_management.InterruptProcessingException as iex:
         logging.info("Processing interrupted")
 
@@ -396,6 +394,7 @@ class PromptExecutor:
                 memo = {}
                 to_execute = sorted(list(map(lambda a: (len(recursive_will_execute(prompt, self.outputs, a[-1], memo)), a[-1]), to_execute)))
                 output_node_id = to_execute.pop(0)[-1]
+
 
                 # This call shouldn't raise anything if there's an error deep in
                 # the actual SD code, instead it will report the node where the

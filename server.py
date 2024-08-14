@@ -96,6 +96,9 @@ class PromptServer():
         self.routes = routes
         self.last_node_id = None
         self.client_id = None
+        
+        self.poll_id = 0
+        self.poll_messages = []
 
         self.on_prompt_handlers = []
 
@@ -464,10 +467,14 @@ class PromptServer():
 
         @routes.get("/history")
         async def get_history(request):
-            max_items = request.rel_url.query.get("max_items", None)
+          max_items = request.rel_url.query.get("max_items", None)
             if max_items is not None:
                 max_items = int(max_items)
             return web.json_response(self.prompt_queue.get_history(max_items=max_items))
+        
+        @routes.get("/poll_messages")
+        async def get_poll_messages(request):
+            return web.json_response(self.poll_messages)
 
         @routes.get("/history/{prompt_id}")
         async def get_history(request):
@@ -628,6 +635,11 @@ class PromptServer():
         return prompt_info
 
     async def send(self, event, data, sid=None):
+        message = {"type": event, "data": data}
+        self.poll_messages.append({"type": event, "data": data, "sid": sid, "poll_id": self.poll_id})
+        self.poll_messages = self.poll_messages[-10:]
+        self.poll_id += 1
+
         if event == BinaryEventTypes.UNENCODED_PREVIEW_IMAGE:
             await self.send_image(data, sid=sid)
         elif isinstance(data, (bytes, bytearray)):

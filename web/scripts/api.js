@@ -39,8 +39,35 @@ class ComfyApi extends EventTarget {
 				this.dispatchEvent(new CustomEvent("status", { detail: status }));
 			} catch (error) {
 				this.dispatchEvent(new CustomEvent("status", { detail: null }));
+				
 			}
-		}, 1000);
+		}, 2000);
+	}
+	
+	#pollMessageQueue() {
+		let lastMessage = -1;
+		setInterval(async () => {
+			const poll_messages = await (await fetch("/poll_messages")).json();
+			poll_messages.forEach(msg => {
+				if(lastMessage >= msg.poll_id) return;
+				console.log('MSG', msg);
+				switch (msg.type) {
+					case "status":
+						this.dispatchEvent(new CustomEvent("status", { detail: msg.data.status }));
+						break;
+					case "progress":
+						this.dispatchEvent(new CustomEvent("progress", { detail: msg.data }));
+						break;
+					case "executing":
+						this.dispatchEvent(new CustomEvent("executing", { detail: msg.data.node }));
+						break;
+					case "executed":
+						this.dispatchEvent(new CustomEvent("executed", { detail: msg.data }));
+						break;
+				}
+				lastMessage = msg.poll_id;
+			});
+		}, 2000)
 	}
 
 	/**
@@ -163,7 +190,8 @@ class ComfyApi extends EventTarget {
 	 * Initialises sockets and realtime updates
 	 */
 	init() {
-		this.#createSocket();
+		//this.#createSocket();
+		this.#pollMessageQueue();
 	}
 
 	/**
